@@ -53,3 +53,33 @@ Not 4x, because the load generator and the 4 workers share the same 8-core lapto
 
 Blocking code inside `async def` freezes the single event loop, so requests run one at a time.
 A plain `def` runs in a thread pool, so the requests overlap. That is why `/predict` is a plain `def`.
+
+## Lab 3: image size and build time
+
+| Image | Size | Cold build | User | Fake secret inside? |
+|---|---|---|---|---|
+| `fraud-service:naive` (`python:3.12`, `COPY . .`) | 3.26 GB | 390 s (446 MB context) | root | **yes** (`leaked.env`) |
+| `fraud-service:dev` (multi-stage, `python:3.12-slim`) | 802 MB | 195 s (2 kB context) | appuser | no |
+| `fraud-service:dev` after a one-line code change | | **4.6 s** (only `COPY src/` re-ran) | | |
+
+The naive image also contained the Mac's `.venv` (470 MB of macOS binaries), `.git`, the data and the scored CSVs.
+
+## Lab 3: inside the container (compose, 2 uvicorn workers, 512 MB limit)
+
+`python scripts/loadtest.py` from the Mac to `localhost:8000` (2,000 requests, 25 concurrent):
+
+| Setup | p50 | p99 | Throughput |
+|---|---|---|---|
+| Lab 2b, on the Mac, 1 worker | 188 ms | 264 ms | 133 req/s |
+| Lab 3, container (as shipped) | 654 ms | 1032 ms | 38 req/s |
+| Lab 3, same image, `-e OMP_NUM_THREADS=1` (experiment only) | 380 ms | 744 ms | 62 req/s |
+
+p99 is about 4x worse in the container. Two causes on this laptop: Docker Desktop on macOS runs Linux in a
+VM, so every request crosses the VM's network bridge; and without `OMP_NUM_THREADS=1` the math libraries in
+both workers start one thread per CPU (8 each) and fight over the cores. On a Linux server, without the VM,
+the gap is much smaller.
+
+`docker stats --no-stream`: fraud-api 338 MiB / 512 MiB (66%), feature-cache 11 MiB.
+
+`time docker compose stop fraud-api`: **1.8 s**, a graceful shutdown ("shutdown complete" in the log).
+Because the CMD uses exec form, uvicorn is PID 1 and receives SIGTERM directly instead of being killed after 10 s.
