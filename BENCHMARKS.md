@@ -83,3 +83,16 @@ the gap is much smaller.
 
 `time docker compose stop fraud-api`: **1.8 s**, a graceful shutdown ("shutdown complete" in the log).
 Because the CMD uses exec form, uvicorn is PID 1 and receives SIGTERM directly instead of being killed after 10 s.
+
+## Lab 4: test suite
+
+| Command | Result | Time |
+|---|---|---|
+| `pytest -m unit` | 16 passed | 0.14 s |
+| `pytest -m integration` | 46 passed (40 malformed payloads) | 4.7 s |
+| `pytest -m "behavioural and not slow"` | 5 passed | 2.4 s |
+| `pytest -m slow` (golden file, 5,000 rows) | 1 passed | 29.4 s |
+| `pytest -m "not slow" --cov` (the per-commit gate) | 67 passed, branch coverage 100% | 5.9 s (10.8 s wall) |
+
+Bug drill (`hour < 6` changed to `hour <= 6`): caught by the unit test
+`test_night_flag_boundaries[6-0]` in under a second, and by the golden test ("skew on 182 rows").
