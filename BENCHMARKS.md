@@ -96,3 +96,20 @@ Because the CMD uses exec form, uvicorn is PID 1 and receives SIGTERM directly i
 
 Bug drill (`hour < 6` changed to `hour <= 6`): caught by the unit test
 `test_night_flag_boundaries[6-0]` in under a second, and by the golden test ("skew on 182 rows").
+
+## Lab 5: pipeline (GitHub Actions, job durations)
+
+| Job | First run on main (`1e1565c`) | Bad PR (`461f244`) | Fixed PR (`f2b8350`) | main after merge (`be2e344`) |
+|---|---|---|---|---|
+| lint | 36 s | failed (ruff `I001`) | 44 s | 44 s |
+| test | 45 s | failed (`test_night_flag_boundaries[6-0]`) | 36 s | 44 s |
+| image-smoke | 145 s | skipped | 28 s | 57 s |
+| publish | 41 s | skipped (never on PRs) | skipped | 23 s |
+
+The first image build had an empty cache. Later builds reuse the Docker layers stored in the GitHub
+Actions cache (`cache-from: type=gha`), so only the `COPY src/` layer is rebuilt: image-smoke fell from
+145 s to 28-57 s and publish from 41 s to 23 s.
+
+Bad-PR drill: the service layer importing `api.schemas` failed `lint` (ruff stops first; `lint-imports`
+also reports `service.scorer -> api.schemas` BROKEN), and `hour <= 6` failed `test`. With `lint`, `test`
+and `image-smoke` required, the pull request could not be merged until both causes were fixed.
