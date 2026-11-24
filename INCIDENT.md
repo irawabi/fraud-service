@@ -1,7 +1,7 @@
 # Incident drill: registry token committed to git
 
-Lab 6 rehearsal. The token below was fake (`ghp_THIS_IS_A_FAKE_TOKEN_FOR_THE_DRILL`) and the two commits
-were never pushed.
+Lab 6 rehearsal. The token was a fake GitHub-style token made up for the drill, and the two commits were
+never pushed. Its value is deliberately not repeated here.
 
 ## What happened
 
@@ -10,7 +10,7 @@ were never pushed.
 | A token was added to `configs/dev.env` | `561a402` "chore: tune dev config" | The token is now in git history |
 | The line was deleted | `9d111cf` "chore: remove token" | The file is clean, but the history is not |
 
-`git log -p --all -S "ghp_THIS_IS" --oneline` still showed the token: the first commit added it (`+`) and
+Searching the history with `git log -p --all -S "<part of the token>" --oneline` still showed the token: the first commit added it (`+`) and
 the second only removed it (`-`). Anyone with a clone, a fork or a cached copy can read it.
 
 ## Response, in this order
